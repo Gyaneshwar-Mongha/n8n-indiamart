@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-indiamart",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "n8n community node for on IndiaMART",
 	"license": "MIT",
 	"homepage": "https://scm.intermesh.net/gyaneshwar.mongha/n8n-indiamart",
@@ -11,8 +11,8 @@
 		"search"
 	],
 	"author": {
-    "name": "Gyaneshwar Mongha",
-    "email": "gyaneshwar.mongha@indiamart.com"
+		"name": "Gyaneshwar Mongha",
+		"email": "gyaneshwar.mongha@indiamart.com"
 	},
 	"repository": {
 		"type": "git",
