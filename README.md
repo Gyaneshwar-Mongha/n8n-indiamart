@@ -25,7 +25,7 @@ npm install n8n-nodes-indiamart
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/gyaneshwar/n8n-nodes-indiamart.git
+git clone git@github.com:Gyaneshwar-Mongha/n8n-indiamart.git
 cd n8n-nodes-indiamart
 ```
 

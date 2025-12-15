@@ -3,7 +3,7 @@
 	"version": "1.0.1",
 	"description": "n8n community node for on IndiaMART",
 	"license": "MIT",
-	"homepage": "https://scm.intermesh.net/gyaneshwar.mongha/n8n-indiamart",
+	"homepage": "https://github.com/Gyaneshwar-Mongha/n8n-indiamart",
 	"keywords": [
 		"n8n-community-node-package",
 		"indiamart",
@@ -11,12 +11,12 @@
 		"search"
 	],
 	"author": {
-		"name": "Gyaneshwar Mongha",
-		"email": "gyaneshwar.mongha@indiamart.com"
+    "name": "Gyaneshwar Mongha",
+    "email": "gyaneshwar.mongha@indiamart.com"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://scm.intermesh.net/gyaneshwar.mongha/n8n-indiamart.git"
+		"url": "https://github.com/Gyaneshwar-Mongha/n8n-indiamart.git"
 	},
 	"scripts": {
 		"build": "n8n-node build",
