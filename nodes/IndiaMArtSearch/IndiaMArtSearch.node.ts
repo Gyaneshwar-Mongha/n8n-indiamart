@@ -1,0 +1,123 @@
+import type {
+	IExecuteFunctions,
+	INodeExecutionData,
+	INodeType,
+	INodeTypeDescription,
+} from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+
+export class IndiaMArtSearch implements INodeType {
+	description: INodeTypeDescription = {
+		displayName: 'IndiaMART Search',
+		name: 'indiaMArtSearch',
+		icon: 'file:icon.svg',
+		group: ['input'],
+		version: 1,
+		description: 'Search IndiaMART for products by keyword and return product names',
+		defaults: {
+			name: 'IndiaMART Search',
+		},
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
+		usableAsTool: true,
+		properties: [
+			// Node properties which the user gets displayed and
+			// can change on the node.
+			{
+				displayName: 'Keyword',
+				name: 'keyword',
+				type: 'string',
+				default: '',
+				placeholder: 'e.g., shirts, shoes',
+				description: 'Search keyword in IndiaMART',
+				required: true,
+			},
+		],
+	};
+
+	// The function below is responsible for searching IndiaMART
+	// for products matching the provided keyword and extracting product names.
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+
+		let item: INodeExecutionData;
+		let keyword: string;
+
+		// Iterates over all input items and fetch products from IndiaMART
+		// for the given keyword
+		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+			try {
+				keyword = this.getNodeParameter('keyword', itemIndex, '') as string;
+				item = items[itemIndex];
+
+				if (!keyword) {
+					throw new NodeOperationError(this.getNode(), 'Keyword parameter is required', {
+						itemIndex,
+					});
+				}
+
+				// Make HTTP request to IndiaMART search API
+				const url = `https://m.indiamart.com/ajaxrequest/search/search?s=${encodeURIComponent(keyword)}`;
+				const response = await this.helpers.httpRequest({
+					method: 'GET',
+					url: url,
+					headers: {
+						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+					},
+				});
+
+				// Parse JSON response
+				let parsedData: unknown;
+				try {
+					parsedData = typeof response === 'string' ? JSON.parse(response) : response;
+				} catch {
+					throw new NodeOperationError(this.getNode(), 'Failed to parse response as JSON', {
+						itemIndex,
+					});
+				}
+
+				// Extract product names from results array
+				const productNames: string[] = [];
+				if (parsedData && typeof parsedData === 'object' && 'results' in parsedData) {
+					const results = (parsedData as Record<string, unknown>).results;
+					if (Array.isArray(results)) {
+						results.forEach((result: unknown) => {
+							if (result) {
+								// Access title from fields key
+								const fields = (result as Record<string, unknown>).fields;
+								if (fields && typeof fields === 'object') {
+									const title = (fields as Record<string, unknown>).title;
+									if (typeof title === 'string') {
+										productNames.push(title);
+									}
+								}
+							}
+						});
+					}
+				}
+
+				// Return product names as array and keyword
+				item.json.products = productNames;
+				item.json.keyword = keyword;
+			} catch (error) {
+				// Handle errors appropriately
+				if (this.continueOnFail()) {
+					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
+				} else {
+					// Adding `itemIndex` allows other workflows to handle this error
+					if (error.context) {
+						// If the error thrown already contains the context property,
+						// only append the itemIndex
+						error.context.itemIndex = itemIndex;
+						throw error;
+					}
+					throw new NodeOperationError(this.getNode(), error, {
+						itemIndex,
+					});
+				}
+			}
+		}
+
+		return [items];
+	}
+}
