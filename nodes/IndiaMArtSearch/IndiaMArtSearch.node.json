@@ -2,17 +2,5 @@
 	"node": "n8n-nodes-indiamart-search",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
-	"categories": ["eCommerce", "Search"],
-	"resources": {
-		"credentialDocumentation": [
-			{
-				"url": "https://www.indiamart.com"
-			}
-		],
-		"primaryDocumentation": [
-			{
-				"url": "https://www.indiamart.com"
-			}
-		]
-	}
+	"categories": ["eCommerce", "Search"]
 }
