@@ -62,7 +62,7 @@ export class IndiaMArtSearch implements INodeType {
 					method: 'GET',
 					url: url,
 					headers: {
-						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+						'User-Agent': 'n8n-nodes-indiamart',
 					},
 				});
 
