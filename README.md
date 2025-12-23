@@ -111,36 +111,31 @@ Once installed:
 4. **Execute the workflow**: Test your workflow to retrieve results
 5. **Use the output**: Connect to other nodes to process, filter, or store the results
 
-### Example Workflows
+### Workflow Examples
 
-#### Basic Product Search
-```
-[Trigger] → [IndiaMART Search] → [Log Output]
-```
+#### Automated Lead-to-Post
+**Scenario:** A customer emails you asking for a specific bulk item.
 
-1. Add an IndiaMART Search node to your workflow
-2. Set the Keyword parameter (e.g., "school bags")
-3. Execute the workflow
-4. View the product names in the output
-
-#### Post Product Requirement
 ```
-[Trigger] → [IndiaMART Post Requirement] → [Log Output]
+[Gmail Trigger] → [AI Agent] → [IndiaMART Search] → [IndiaMART Post Requirement] → [Log Output]
 ```
 
-1. Add an IndiaMART Post Requirement node to your workflow
-2. Set the Product Name (e.g., "Pave Diamond Pendant")
-3. Set your contact information (e.g., "user@email.com")
-4. Execute the workflow
+1. **Gmail receives an email:** "I need 500 wooden toy cars."
+2. **AI Agent:** Extracts the keyword "wooden toy cars".
+3. **IndiaMART Search:** Scans for existing suppliers to check market prices.
+4. **IndiaMART Post Requirement:** Automatically posts a "Buy Lead" so suppliers contact you directly.
 
-#### Combined Search and Post Workflow
+#### Spreadsheet Batch Sourcing
+**Scenario:** You have a list of products in a Google Sheet that you need to source.
+
 ```
-[Trigger] → [IndiaMART Search] → [Process Results] → [IndiaMART Post Requirement] → [Log Output]
+[Google Sheets Trigger] → [AI Agent] → [IndiaMART Search] → [IndiaMART Post Requirement] → [Update Sheet]
 ```
 
-1. Search for products using the Search node
-2. Process the results to filter products
-3. Post a requirement for selected product
+1. **New row added to Google Sheets:** "Product: LED Lights".
+2. **AI Agent:** Validates the product category.
+3. **IndiaMART Search:** Finds the top 10 current listings for LED Lights.
+4. **IndiaMART Post Requirement:** Posts a public requirement to get competitive bids from those suppliers.
 
 ## Author
 
