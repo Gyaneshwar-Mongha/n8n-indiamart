@@ -54,7 +54,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const productName = this.getNodeParameter('productName', itemIndex, '') as string;
-				const contact = this.getNodeParameter('contact', itemIndex, '') as string;
+				// const contact = this.getNodeParameter('contact', itemIndex, '') as string;
 				item = items[itemIndex];
 
 				const postResponse = await this.helpers.httpRequest({
@@ -83,6 +83,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 
 				if (hasValidOfr) {
 					// Return success response
+					item.json = {};
 					item.json.message = 'Successfully posted requirement on IndiaMART';
 				} else {
 					throw new NodeOperationError(this.getNode(), 'Could not post requirement on IndiaMART', {
