@@ -13,7 +13,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 		icon: 'file:../icon.svg',
 		group: ['output'],
 		version: 1,
-		description: 'Post a product requirement on IndiaMART using the saveEnrichment API',
+		description: 'Post a product requirement on IndiaMART',
 		defaults: {
 			name: 'IndiaMART Post Requirement',
 		},
@@ -28,7 +28,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 				name: 'productName',
 				type: 'string',
 				default: '',
-				placeholder: 'e.g., Pave Diamond Pendant',
+				placeholder: 'water purifier, office chair',
 				description: 'Product name for the requirement',
 				required: true,
 			},
@@ -37,7 +37,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 				name: 'contact',
 				type: 'string',
 				default: '',
-				placeholder: 'e.g., user@email.com or +1234567890',
+				placeholder: '+917234231410 or user@email.com',
 				description: 'Contact number or email address',
 				required: true,
 			},
@@ -59,8 +59,8 @@ export class IndiaMArtPostRequirement implements INodeType {
 
 				const postResponse = await this.helpers.httpRequest({
 					method: 'POST',
-					url: 'http://localhost:3000/api/saveEnrichment/',
-					json: {
+					url: 'https://export.indiamart.com/api/saveEnrichment/',
+					body: {
 						category_type: 'P',
 						curr_page_url: '',
 						glcat_mcat_id: '191662',
@@ -68,18 +68,27 @@ export class IndiaMArtPostRequirement implements INodeType {
 						modref_type: 'product',
 						prod_serv: 'P',
 						rfq_cat_id: '614',
-						rfq_query_ref_text: 'ctaName=Post Requirement|ctaType=Sourcing BL Form|Export',
+						rfq_query_ref_text: 'n8n',
 						rfq_ref_url: '',
 						rfq_sender_id: '31400302',
 						rfq_subject: productName,
 					},
+					headers: {
+						'User-Agent': 'n8n-nodes-indiamart',
+					},
 				} as any);
 
-				// Return success response
-				item.json.success = true;
-				item.json.productName = productName;
-				item.json.contact = contact;
-				item.json.postResponse = postResponse;
+				// Check if ofr exists and contains a number value
+				const hasValidOfr = postResponse.ofr && !isNaN(Number(postResponse.ofr));
+
+				if (hasValidOfr) {
+					// Return success response
+					item.json.message = 'Successfully posted requirement on IndiaMART';
+				} else {
+					throw new NodeOperationError(this.getNode(), 'Could not post requirement on IndiaMART', {
+						itemIndex,
+					});
+				}
 			} catch (error) {
 				// Handle errors appropriately
 				if (this.continueOnFail()) {
