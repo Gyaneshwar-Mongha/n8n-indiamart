@@ -10,7 +10,7 @@ export class IndiaMArtSearch implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART Search',
 		name: 'indiaMArtSearch',
-		icon: 'file:icon.svg',
+		icon: 'file:../icon.svg',
 		group: ['input'],
 		version: 1,
 		description: 'Search IndiaMART for products by keyword and return product names',
@@ -57,7 +57,7 @@ export class IndiaMArtSearch implements INodeType {
 				}
 
 				// Make HTTP request to IndiaMART search API
-				const url = `https://m.indiamart.com/ajaxrequest/search/search?s=${encodeURIComponent(keyword)}`;
+				const url = `https://dir.indiamart.com/api/n8nreq.rp?q=${encodeURIComponent(keyword)}&source=dir.search`;
 				const response = await this.helpers.httpRequest({
 					method: 'GET',
 					url: url,
@@ -76,8 +76,8 @@ export class IndiaMArtSearch implements INodeType {
 					});
 				}
 
-				// Extract product names from results array
-				const productNames: string[] = [];
+				// Extract products from results array
+				const productArray: Array<{ name: unknown; number: unknown; companyname: unknown; image: unknown }> = [];
 				if (parsedData && typeof parsedData === 'object' && 'results' in parsedData) {
 					const results = (parsedData as Record<string, unknown>).results;
 					if (Array.isArray(results)) {
@@ -87,9 +87,15 @@ export class IndiaMArtSearch implements INodeType {
 								const fields = (result as Record<string, unknown>).fields;
 								if (fields && typeof fields === 'object') {
 									const title = (fields as Record<string, unknown>).title;
-									if (typeof title === 'string') {
-										productNames.push(title);
-									}
+									const pns = (fields as Record<string, unknown>).pns;
+									const companyname = (fields as Record<string, unknown>).companyname;
+									const zoomed_image = (fields as Record<string, unknown>).zoomed_image;
+									productArray.push({
+										name:title,
+										number:pns,
+										companyname:companyname,
+										image:zoomed_image
+									});
 								}
 							}
 						});
@@ -97,7 +103,7 @@ export class IndiaMArtSearch implements INodeType {
 				}
 
 				// Return product names as array and keyword
-				item.json.products = productNames;
+				item.json.products = productArray;
 				item.json.keyword = keyword;
 			} catch (error) {
 				// Handle errors appropriately

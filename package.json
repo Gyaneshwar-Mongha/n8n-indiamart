@@ -34,7 +34,8 @@
 		"strict": true,
 		"credentials": [],
 		"nodes": [
-			"dist/nodes/IndiaMArtSearch/IndiaMArtSearch.node.js"
+			"dist/nodes/IndiaMArtSearch/IndiaMArtSearch.node.js",
+			"dist/nodes/IndiaMArtPostRequirement/IndiaMArtPostRequirement.node.js"
 		]
 	},
 	"devDependencies": {
