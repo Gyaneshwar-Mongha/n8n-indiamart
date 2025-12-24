@@ -133,7 +133,7 @@ Once installed:
 ```
 
 1. **New row added to Google Sheets:** "Product: LED Lights".
-2. **AI Agent:** Validates the product category.
+2. **AI Agent:** Extracts the product keyword to search.
 3. **IndiaMART Search:** Finds the top 10 current listings for LED Lights.
 4. **IndiaMART Post Requirement:** Posts requirement on Indiamart to connect with verified suppliers.
 
