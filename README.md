@@ -3,6 +3,7 @@
 # n8n-nodes-indiamart
 
 This is an n8n community node that enables seamless integration with IndiaMART for product sourcing and purchasing workflows.
+
 IndiaMART is India's largest B2B marketplace, connecting buyers and suppliers across industries.
 
 
