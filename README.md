@@ -123,7 +123,7 @@ Once installed:
 1. **Gmail receives an email:** "I need 500 wooden toy cars."
 2. **AI Agent:** Extracts the keyword "wooden toy cars".
 3. **IndiaMART Search:** Scans for existing suppliers to check market prices.
-4. **IndiaMART Post Requirement:** Automatically posts a "Buy Lead" so suppliers contact you directly.
+4. **IndiaMART Post Requirement:** Automatically posts requirement on Indiamart so suppliers for wooden toy cars contact you directly.
 
 #### Spreadsheet Batch Sourcing
 **Scenario:** You have a list of products in a Google Sheet that you need to source.
@@ -135,7 +135,7 @@ Once installed:
 1. **New row added to Google Sheets:** "Product: LED Lights".
 2. **AI Agent:** Validates the product category.
 3. **IndiaMART Search:** Finds the top 10 current listings for LED Lights.
-4. **IndiaMART Post Requirement:** Posts a public requirement to get competitive bids from those suppliers.
+4. **IndiaMART Post Requirement:** Posts requirement on Indiamart to connect with verified suppliers.
 
 ## Author
 
