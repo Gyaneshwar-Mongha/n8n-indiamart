@@ -54,23 +54,78 @@ export class IndiaMArtPostRequirement implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const productName = this.getNodeParameter('productName', itemIndex, '') as string;
-				// const contact = this.getNodeParameter('contact', itemIndex, '') as string;
+				const contact = this.getNodeParameter('contact', itemIndex, '') as string;
 				item = items[itemIndex];
 
+				/* ---------------- LOGIN API ---------------- */
+				const loginResponse = await this.helpers.httpRequest({
+					method: 'GET',
+					url: 'https://dir.indiamart.com/api/fdbklogin',
+					qs: {
+						username: contact,
+						modid: 'DIR',
+						glusr_usr_countryname: 'India',
+						screen_name: 'BL/Enq Forms',
+						create_user: 1,
+						format: 'JSON',
+						iso: 'IN',
+					},
+					headers: {
+						'User-Agent': 'n8n-nodes-indiamart',
+						Accept: 'application/json',
+					},
+				});
+
+				if (!loginResponse || loginResponse.code !== 200) {
+					throw new NodeOperationError(this.getNode(), 'IndiaMART login failed', {
+						itemIndex,
+					});
+				}
+
+				/* ---------------- EXTRACT glid ---------------- */
+				const rfq_sender_id = loginResponse.DataCookie?.glid;
+
+				if (!rfq_sender_id) {
+					throw new NodeOperationError(this.getNode(), 'glid not found in login response', {
+						itemIndex,
+					});
+				}
+
+				const mcatInfo = await this.helpers.httpRequest({
+					method: 'GET',
+					url: 'https://apps.imimg.com/models/mcatid-suggestion.php',
+					qs: {
+						search_param: 'bags',
+					},
+					headers: {
+						'User-Agent': 'n8n-nodes-indiamart',
+						Accept: 'application/json',
+					},
+				});
+				if (!mcatInfo?.mcatid || !mcatInfo?.catid) {
+					throw new NodeOperationError(this.getNode(), 'Invalid MCAT response from IndiaMART', {
+						itemIndex,
+					});
+				}
+
+				const mcatid = String(mcatInfo.mcatid);
+				const catid = String(mcatInfo.catid);
+
+				/* ---------------- POST REQUIREMENT ---------------- */
 				const postResponse = await this.helpers.httpRequest({
 					method: 'POST',
 					url: 'https://export.indiamart.com/api/saveEnrichment/',
 					body: {
 						category_type: 'P',
 						curr_page_url: '',
-						glcat_mcat_id: '191662',
+						glcat_mcat_id: mcatid,
 						iso: 'IN',
 						modref_type: 'product',
 						prod_serv: 'P',
-						rfq_cat_id: '614',
+						rfq_cat_id: catid,
 						rfq_query_ref_text: 'n8n',
 						rfq_ref_url: '',
-						rfq_sender_id: '31400302',
+						rfq_sender_id: rfq_sender_id,
 						rfq_subject: productName,
 					},
 					headers: {
