@@ -131,7 +131,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 					headers: {
 						'User-Agent': 'n8n-nodes-indiamart',
 					},
-				} as any);
+				});
 
 				// Check if ofr exists and contains a number value
 				const hasValidOfr = postResponse.ofr && !isNaN(Number(postResponse.ofr));
