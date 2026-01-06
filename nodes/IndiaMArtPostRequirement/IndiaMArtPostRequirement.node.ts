@@ -4,60 +4,9 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { ApplicationError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-/* =======================
-   TYPES
-======================= */
-interface AISelectedProduct {
-	name: string;
-	number?: string;
-	companyname?: string;
-	image?: string;
-	user_info?: string;
-}
 
-/* =======================
-   PARSER
-======================= */
-function parseAIOutput(raw: unknown): AISelectedProduct | null {
-	if (typeof raw !== 'string') {
-		throw new ApplicationError('AI output is not a string');
-	}
-
-	const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
-
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(cleaned);
-	} catch {
-		throw new ApplicationError('Failed to parse AI JSON string');
-	}
-
-	if (typeof parsed !== 'object' || parsed === null) {
-		throw new ApplicationError('AI output is not a JSON object');
-	}
-
-	const obj = parsed as Record<string, unknown>;
-
-	if ('bestProduct' in obj) {
-		const bp = obj.bestProduct;
-		if (bp === null) return null;
-		if (typeof bp === 'object' && bp !== null && 'name' in bp && typeof (bp as Record<string, unknown>).name === 'string') {
-			const product: AISelectedProduct = bp as AISelectedProduct;
-			if ('user_info' in obj && typeof obj.user_info === 'string') {
-				product.user_info = obj.user_info;
-			}
-			return product;
-		}
-	}
-
-	throw new ApplicationError('AI output JSON does not contain a valid product');
-}
-
-/* =======================
-   NODE
-======================= */
 export class IndiaMArtPostRequirement implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART Post Requirement',
@@ -76,14 +25,67 @@ export class IndiaMArtPostRequirement implements INodeType {
 				name: 'productName',
 				type: 'string',
 				default: '',
-				description: 'If empty, AI output will be used',
+				required: true,
+				placeholder: 'Smartphone, Laptop',
+				description: 'Name of the product to post requirement for',
+			},
+			{
+				displayName: 'Quantity',
+				name: 'quantity',
+				type: 'string',
+				default: '',
+				placeholder: '100',
+				description: 'Quantity of the product required',
+			},
+			{
+				displayName: 'Unit',
+				name: 'unit',
+				type: 'string',
+				default: '',
+				placeholder: 'Pieces, kg, liters',
+				description: 'Unit of measurement for the quantity',
 			},
 			{
 				displayName: 'Contact (Mobile / Email)',
 				name: 'contact',
 				type: 'string',
 				default: '',
-				description: 'If empty, mobile from sheet or AI user_info will be used',
+				required: true,
+				placeholder: 'e.g., 9876543210 or user@example.com',
+				description: 'Contact information (mobile number or email)',
+			},
+			{
+				displayName: 'Name',
+				name: 'name',
+				type: 'string',
+				default: '',
+				required: true,
+				placeholder: 'John Doe',
+				description: 'Your full name',
+			},
+			{
+				displayName: 'Company Name',
+				name: 'companyName',
+				type: 'string',
+				default: '',
+				placeholder: 'ABC Pvt Ltd',
+				description: 'Name of your company',
+			},
+			{
+				displayName: 'Company Url',
+				name: 'companyUrl',
+				type: 'string',
+				default: '',
+				placeholder: 'https://www.example.com',
+				description: 'Website of your company',
+			},
+			{
+				displayName: 'Description',
+				name: 'description',
+				type: 'string',
+				default: '',
+				placeholder: 'Looking for high-quality products...',
+				description: 'Additional details about the requirement',
 			},
 		],
 	};
@@ -95,48 +97,23 @@ export class IndiaMArtPostRequirement implements INodeType {
 			const item = items[itemIndex];
 
 			try {
-				// ----------------------------
-				// 1. READ INPUTS
-				// ----------------------------
-				let productName =
-					(this.getNodeParameter('productName', itemIndex, '') as string) || '';
-
-				let contact =
-					(this.getNodeParameter('contact', itemIndex, '') as string) ||
+				let productName = (this.getNodeParameter('productName', itemIndex, '') as string) || '';
+				let contact = (this.getNodeParameter('contact', itemIndex, '') as string) ||
 					String(item.json.mobile ?? '');
-
-				// Use AI output if available
-				if (!productName && item.json.output) {
-					try {
-						const aiProduct = parseAIOutput(item.json.output);
-
-						if (!aiProduct) {
-							item.json.best_product = null;
-							item.json.status = 'skipped';
-							item.json.message = 'AI did not select any product';
-							continue;
-						}
-
-						productName = aiProduct.name;
-						item.json.best_product = aiProduct;
-
-						// Use AI user_info as contact if available
-						if (aiProduct.user_info) {
-							contact = aiProduct.user_info;
-						}
-					} catch (error) {
-						throw new NodeOperationError(
-							this.getNode(),
-							error instanceof Error ? error.message : 'Failed to parse AI output',
-							{ itemIndex }
-						);
-					}
+				let name = (this.getNodeParameter('name', itemIndex, '') as string) || '';
+				let companyName = (this.getNodeParameter('companyName', itemIndex, '') as string) || '';
+				let companyUrl = (this.getNodeParameter('companyUrl', itemIndex, '') as string) || '';
+				let description = (this.getNodeParameter('description', itemIndex, '') as string) || '';
+				let quantity = (this.getNodeParameter('quantity', itemIndex, '') as string) || '';
+				let unit = (this.getNodeParameter('unit', itemIndex, '') as string) || '';
+				if(quantity && unit){
+					description = ` Quantity: ${quantity} ${unit}.\n` + description;
 				}
 
 				if (!productName) {
 					throw new NodeOperationError(
 						this.getNode(),
-						'Product name missing (UI input or AI output required)',
+						'Product name required',
 						{ itemIndex }
 					);
 				}
@@ -149,40 +126,17 @@ export class IndiaMArtPostRequirement implements INodeType {
 					);
 				}
 
-				// ----------------------------
-				// 2. GEO API
-				// ----------------------------
-				const geoInfo = await this.helpers.httpRequest({
-					method: 'GET',
-					url: 'https://dev-dir.indiamart.com/api/geoDetail',
-					headers: {
-						'User-Agent': 'n8n-nodes-indiamart',
-						Accept: 'application/json',
-						Authorization: 'Basic aW5kaW50ZXJtZXNoOmluZGludGVybWVzaA==',
-					},
-				});
-
-				if (!geoInfo?.geo?.gcniso || !geoInfo?.geo?.gcnnm) {
-					throw new NodeOperationError(this.getNode(), 'Invalid GEO API response', { itemIndex });
-				}
-
-				const countryIso = String(geoInfo.geo.gcniso);
-				const countryName = String(geoInfo.geo.gcnnm);
-
-				// ----------------------------
-				// 3. LOGIN (uses AI user_info automatically)
-				// ----------------------------
 				const loginResponse = await this.helpers.httpRequest({
 					method: 'GET',
 					url: 'https://dir.indiamart.com/api/fdbklogin',
 					qs: {
 						username: contact,
 						modid: 'DIR',
-						glusr_usr_countryname: countryName,
+						glusr_usr_countryname: 'India',
 						screen_name: 'BL/Enq Forms',
 						create_user: 1,
 						format: 'JSON',
-						iso: countryIso,
+						iso: '+91',
 					},
 					headers: {
 						'User-Agent': 'n8n-nodes-indiamart',
@@ -190,13 +144,12 @@ export class IndiaMArtPostRequirement implements INodeType {
 				});
 
 				const rfq_sender_id = loginResponse?.DataCookie?.glid;
+				const sessionKey = loginResponse?.DataCookie?.sessionKey;
+
 				if (!rfq_sender_id) {
 					throw new NodeOperationError(this.getNode(), 'glid not found in login', { itemIndex });
 				}
 
-				// ----------------------------
-				// 4. MCAT LOOKUP
-				// ----------------------------
 				const mcatInfo = await this.helpers.httpRequest({
 					method: 'GET',
 					url: 'https://apps.imimg.com/models/mcatid-suggestion.php',
@@ -208,9 +161,23 @@ export class IndiaMArtPostRequirement implements INodeType {
 					throw new NodeOperationError(this.getNode(), 'Invalid MCAT response', { itemIndex });
 				}
 
-				// ----------------------------
-				// 5. POST REQUIREMENT
-				// ----------------------------
+				await this.helpers.httpRequest({
+					method: 'POST',
+					url: 'https://export.indiamart.com/api/glusrUpdate/',
+					body: {
+						SESSION_KEY: sessionKey,
+						companyName: companyName,
+						s_first_name: name,
+						s_glusrid: rfq_sender_id,
+						scrnNm: 'N8N',
+						url: companyUrl,
+					},
+					headers: {
+						'User-Agent': 'n8n-nodes-indiamart',
+						'Content-Type': 'application/json', // Added typically for POST requests
+					},
+				});
+
 				const postResponse = await this.helpers.httpRequest({
 					method: 'POST',
 					url: 'https://export.indiamart.com/api/saveEnrichment/',
@@ -218,7 +185,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 						category_type: 'P',
 						glcat_mcat_id: String(mcatInfo.mcatid),
 						rfq_cat_id: String(mcatInfo.catid),
-						iso: countryIso,
+						iso: '+91',
 						modref_type: 'product',
 						prod_serv: 'P',
 						rfq_sender_id,
@@ -234,9 +201,26 @@ export class IndiaMArtPostRequirement implements INodeType {
 					throw new NodeOperationError(this.getNode(), 'Failed to post requirement to IndiaMART', { itemIndex });
 				}
 
-				// ----------------------------
-				// 6. SUCCESS OUTPUT
-				// ----------------------------
+				const ofrid = String(postResponse.ofr);
+
+				await this.helpers.httpRequest({
+				method: 'POST',
+				url: 'https://export.indiamart.com/api/saveEnrichment/',
+				body: {
+					enrichDesc: description,
+					flag: 'BL',
+					modid: 'EXPORT',
+					ofr_id: ofrid,
+					q_dest: 1,
+					rfq_sender_id: rfq_sender_id,
+					updatevalue: 'updated from n8n',
+				},
+				headers: {
+					'User-Agent': 'n8n-nodes-indiamart',
+					'Content-Type': 'application/json',
+				},
+			});
+
 				item.json.status = 'posted';
 				item.json.postedProduct = productName;
 				item.json.contactUsed = contact;
