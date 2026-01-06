@@ -16,17 +16,85 @@ IndiaMART is India's largest B2B marketplace, connecting buyers and suppliers ac
 
 ## Installation
 
-Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+### Via npm (Recommended)
+
+1. **Navigate to your n8n custom nodes directory:**
+   ```bash
+   cd ~/.n8n/nodes
+   ```
+
+2. **Install the package:**
+   ```bash
+   npm install n8n-nodes-indiamart
+   ```
+
+3. **Restart n8n:**
+   ```bash
+   # If running locally
+   n8n start
+   
+   # If running with Docker
+   docker restart n8n
+   ```
+
+4. **Verify installation:**
+   - Open n8n in your browser (http://localhost:5678)
+   - Create a new workflow
+   - Search for "IndiaMART" in the node panel
+   - You should see both nodes available
+
+### Via Git (Development)
+
+For development or contributing:
+
+```bash
+# Clone the repository
+git clone https://github.com/Gyaneshwar-Mongha/n8n-indiamart.git
+cd n8n-indiamart
+
+# Install dependencies
+npm install
+
+# Build the package
+npm run build
+
+# Link locally for testing
+npm link
+
+# In your n8n directory, link the package
+cd ~/.n8n
+npm link n8n-nodes-indiamart
+
+# Restart n8n
+n8n start
+```
+
+### Cloud Deployment
+
+For n8n Cloud:
+1. Log in to your n8n Cloud account
+2. Go to **Settings** → **Community Nodes**
+3. Click **Install**
+4. Enter `n8n-nodes-indiamart`
+5. Click **Install** and wait for completion
+
+See the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation for more details.
 
 ## Operations
 
 This package includes the following nodes:
 
-### Search
-Search for products on IndiaMART by keyword and retrieve a list of matching product names
+### 1. IndiaMART Search
+Search for products on IndiaMART by keyword and location, retrieve a list of matching suppliers and products.
 
-### Post Requirement
-Post a product requirement on IndiaMART using the saveEnrichment API to generate sourcing requests
+**Type:** Transform  
+**Category:** Data transformation and search operations
+
+### 2. IndiaMART Post Requirement
+Post a product requirement on IndiaMART to generate sourcing requests and connect with suppliers.
+
+**Type:** Output  
+**Category:** Data output and integration operations
 
 ## Compatibility
 
@@ -35,6 +103,64 @@ Tested locally against n8n v1.104.2.
 ## Usage
 
 ### IndiaMART Search Node
+
+#### Parameters
+
+The IndiaMART Search node accepts the following parameters:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Keyword | String | ✅ Yes | Empty | Search term to query on IndiaMART (e.g., "school bags", "office supplies") |
+| City | String | ❌ No | Empty | City/location to filter search results (e.g., "Mumbai", "Delhi") |
+| Country | String | ❌ No | Empty | Country name to filter results (e.g., "India") |
+
+#### Input
+
+Accepts data from previous nodes. The node can read parameters from:
+- **Node UI:** Directly entered values in the node configuration
+- **Input JSON:** Previous node output with `keyword`, `city`, and `country` properties
+
+#### Output
+
+Returns an array of items, each containing:
+
+```json
+{
+  "keyword": "toys",
+  "city": "Mumbai",
+  "country": "India",
+  "products": [
+    {
+      "name": "Plastic Dancing Cactus Toy",
+      "number": "8044562706",
+      "companyname": "Shree Lalankrupa Enterprise",
+      "image": "http://5.imimg.com/data5/SELLER/Default/2024/3/405052888/TF/TX/ZQ/214979800/dancing-cactus-toy-500x500.jpeg",
+      "smalldescorg": "Dancing toys for children"
+    }
+  ],
+  "searchedAt": "2026-01-05T10:30:00.000Z",
+  "skipped": false
+}
+```
+
+**Output Fields:**
+- **keyword:** The search keyword used
+- **city:** City filter applied (if any)
+- **country:** Country filter applied (if any)
+- **products:** Array of matching products with:
+  - **name:** Product name
+  - **number:** Product/SKU number
+  - **companyname:** Supplier/company name
+  - **image:** Product image URL
+  - **smalldescorg:** Short product description
+- **searchedAt:** Timestamp of the search
+- **skipped:** Boolean indicating if the row was skipped (e.g., status is "used")
+
+#### Error Handling
+
+- **"Keyword is required"**: Provide a keyword either in the node UI or in the input JSON
+- **API Failures:** The node will throw a `NodeOperationError` if IndiaMART API is unreachable
+- **Empty Results:** Returns an empty products array if no matches found
 
 #### Node Configuration
 
@@ -77,41 +203,71 @@ The node returns an object with:
 
 ### IndiaMART Post Requirement Node
 
-#### Node Configuration
+#### Parameters
 
-The IndiaMART Post Requirement node requires the following parameters:
+The IndiaMART Post Requirement node accepts the following parameters:
 
-**Product Name** (required)
-- The name of the product for which you're posting a requirement
-- Examples: "Pave Diamond Pendant", "Office Chairs", "Electronics"
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| Product Name | String | ✅ Yes* | Empty | Name of the product for which you're posting a requirement |
+| Contact (Mobile / Email) | String | ✅ Yes* | Empty | Contact number or email address for the requirement |
 
-**Contact** (required)
-- Contact number or email address for the requirement
-- Examples: "user@email.com" or "7233191224"
+**Note:** Fields marked with * are required, but can be sourced from:
+- **Node UI:** Directly entered values
+- **Input JSON:** From previous node output (e.g., AI agent output or spreadsheet)
+
+#### Input
+
+Accepts data from previous nodes. The node can process:
+- **Product Name:** From UI input OR from `output` field (AI agent JSON output)
+- **Contact:** From UI input OR from `mobile` field OR from AI output's `user_info` field
 
 #### Output
 
-The node returns an object with:
+Returns an array of items with the following structure:
 
 ```json
 {
-  "message": "Successfully posted requirement on IndiaMART",
+  "status": "posted",
+  "postedProduct": "LED Lights",
+  "contactUsed": "7233191224",
+  "message": "Requirement posted successfully",
+  "best_product": {
+    "name": "LED Lights - 10W",
+    "number": "8044562706",
+    "companyname": "Electronics Supplier",
+    "user_info": "7233191224"
+  }
 }
 ```
 
-- **message**: Success or error message
+#### Error Handling
 
-### Using the IndiaMART Nodes
+- **"Product name missing"**: Provide product name in UI or ensure AI output contains valid product data
+- **"Contact is required"**: Provide contact via UI, sheet data, or AI output
+- **"Invalid GEO API response"**: Location detection failed; try again or check network
+- **"glid not found in login"**: Authentication issue; the node couldn't establish a session
+- **"Failed to post requirement"**: IndiaMART API returned an error; verify product name is valid
 
-Once installed:
+#### Continue on Fail
 
-1. **Create a new workflow** or open an existing one
-2. **Add IndiaMART nodes**: Search for "IndiaMART" in the node panel and drag nodes into your workflow
-3. **Configure parameters**: Enter required parameters for each node
-4. **Execute the workflow**: Test your workflow to retrieve results
-5. **Use the output**: Connect to other nodes to process, filter, or store the results
+When enabled, errors are caught and stored in `item.json.error` instead of stopping execution:
+- Useful for batch processing where you want to skip individual errors
+- Check the `error` field in output to diagnose issues
 
-### Workflow Examples
+## Usage
+
+### Quick Start
+
+1. Install the n8n-nodes-indiamart package
+2. Reload n8n or restart the server
+3. Create a new workflow
+4. Add either **IndiaMART Search** or **IndiaMART Post Requirement** node
+5. Configure parameters as needed
+6. Connect to other nodes in your workflow
+7. Execute and monitor results
+
+### Common Workflows
 
 #### Automated Lead-to-Post
 **Scenario:** A customer emails you asking for a specific bulk item.
