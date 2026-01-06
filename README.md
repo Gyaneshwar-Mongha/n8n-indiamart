@@ -3,6 +3,7 @@
 # n8n-nodes-indiamart
 
 This is an n8n community node that enables seamless integration with IndiaMART for product sourcing and purchasing workflows.
+
 IndiaMART is India's largest B2B marketplace, connecting buyers and suppliers across industries.
 
 
@@ -289,7 +290,7 @@ When enabled, errors are caught and stored in `item.json.error` instead of stopp
 ```
 
 1. **New row added to Google Sheets:** "Product: LED Lights".
-2. **AI Agent:** Validates the product category.
+2. **AI Agent:** Extracts the product keyword to search.
 3. **IndiaMART Search:** Finds the top 10 current listings for LED Lights.
 4. **IndiaMART Post Requirement:** Post requirement on Indiamart to connect with  verified suppliers.
 
