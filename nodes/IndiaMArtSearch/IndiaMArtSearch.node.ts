@@ -4,16 +4,16 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
 
 export class IndiaMArtSearch implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART Search',
 		name: 'indiaMArtSearch',
 		icon: 'file:../icon.svg',
-		group: ['input'],
+		group: ['transform'],
 		version: 1,
-		description: 'Search IndiaMART for products by keyword and return product names',
+		description: 'Search IndiaMART using UI input or previous node data',
 		defaults: {
 			name: 'IndiaMART Search',
 		},
@@ -21,107 +21,136 @@ export class IndiaMArtSearch implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		properties: [
-			// Node properties which the user gets displayed and
-			// can change on the node.
 			{
 				displayName: 'Keyword',
 				name: 'keyword',
 				type: 'string',
 				default: '',
-				placeholder: 'e.g., shirts, shoes',
-				description: 'Search keyword in IndiaMART',
-				required: true,
+			},
+			{
+				displayName: 'City',
+				name: 'city',
+				type: 'string',
+				default: '',
+			},
+			{
+				displayName: 'Country',
+				name: 'country',
+				type: 'string',
+				default: '',
 			},
 		],
 	};
 
-	// The function below is responsible for searching IndiaMART
-	// for products matching the provided keyword and extracting product names.
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 
-		let item: INodeExecutionData;
-		let keyword: string;
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
 
-		// Iterates over all input items and fetch products from IndiaMART
-		// for the given keyword
-		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+			/* ===============================
+			   0. SKIP IF STATUS IS USED
+			=============================== */
+
+			if (item.json.status === 'used') {
+				item.json.skipped = true;
+				item.json.message = 'Row already used, skipping IndiaMART search';
+				continue;
+			}
+
+			/* ===============================
+			   1. READ INPUTS
+			=============================== */
+
+			const keyword =
+				(this.getNodeParameter('keyword', i, '') as string) ||
+				(item.json.keyword as string);
+
+			const city =
+				(this.getNodeParameter('city', i, '') as string) ||
+				(item.json.city as string) ||
+				'';
+
+			const country =
+				(this.getNodeParameter('country', i, '') as string) ||
+				(item.json.country as string) ||
+				'';
+
+			if (!keyword) {
+				throw new NodeOperationError(
+					this.getNode(),
+					'Keyword is required (provide via UI or input JSON)',
+					{ itemIndex: i },
+				);
+			}
+
+			/* ===============================
+			   2. SEARCH API
+			=============================== */
+
+			const url = `https://dir.indiamart.com/api/n8nreq.rp?q=${encodeURIComponent(
+				keyword,
+			)}&source=dir.search&options.filters.city.data=${encodeURIComponent(
+				city,
+			)}&geo_country_info.geo_country_name=${encodeURIComponent(country)}`;
+
+			const response = await this.helpers.httpRequest({
+				method: 'GET',
+				url,
+				headers: {
+					'User-Agent': 'n8n-nodes-indiamart',
+				},
+			});
+
+			let parsedData: Record<string, unknown>;
 			try {
-				keyword = this.getNodeParameter('keyword', itemIndex, '') as string;
-				item = items[itemIndex];
+				parsedData =
+					typeof response === 'string' ? JSON.parse(response) : response;
+			} catch {
+				throw new NodeOperationError(
+					this.getNode(),
+					'Failed to parse IndiaMART response',
+					{ itemIndex: i },
+				);
+			}
 
-				if (!keyword) {
-					throw new NodeOperationError(this.getNode(), 'Keyword parameter is required', {
-						itemIndex,
-					});
-				}
+			/* ===============================
+			   3. EXTRACT PRODUCTS
+			=============================== */
 
-				// Make HTTP request to IndiaMART search API
-				const url = `https://dir.indiamart.com/api/n8nreq.rp?q=${encodeURIComponent(keyword)}&source=dir.search`;
-				const response = await this.helpers.httpRequest({
-					method: 'GET',
-					url: url,
-					headers: {
-						'User-Agent': 'n8n-nodes-indiamart',
-					},
-				});
+			const products: Array<{
+				name: unknown;
+				number: unknown;
+				companyname: unknown;
+				image: unknown;
+				smalldescorg: unknown;
+			}> = [];
 
-				// Parse JSON response
-				let parsedData: unknown;
-				try {
-					parsedData = typeof response === 'string' ? JSON.parse(response) : response;
-				} catch {
-					throw new NodeOperationError(this.getNode(), 'Failed to parse response as JSON', {
-						itemIndex,
-					});
-				}
-
-				// Extract products from results array
-				const productArray: Array<{ name: unknown; number: unknown; companyname: unknown; image: unknown }> = [];
-				if (parsedData && typeof parsedData === 'object' && 'results' in parsedData) {
-					const results = (parsedData as Record<string, unknown>).results;
-					if (Array.isArray(results)) {
-						results.forEach((result: unknown) => {
-							if (result) {
-								// Access title from fields key
-								const fields = (result as Record<string, unknown>).fields;
-								if (fields && typeof fields === 'object') {
-									const title = (fields as Record<string, unknown>).title;
-									const pns = (fields as Record<string, unknown>).pns;
-									const companyname = (fields as Record<string, unknown>).companyname;
-									const zoomed_image = (fields as Record<string, unknown>).zoomed_image;
-									productArray.push({
-										name:title,
-										number:pns,
-										companyname:companyname,
-										image:zoomed_image
-									});
-								}
-							}
+			if (parsedData?.results && Array.isArray(parsedData.results)) {
+				for (const result of parsedData.results) {
+					const fields = result?.fields;
+					if (fields) {
+						products.push({
+							name: fields.title,
+							number: fields.pns,
+							companyname: fields.companyname,
+							image: fields.zoomed_image,
+							smalldescorg: fields.smalldescorg,
 						});
 					}
 				}
-
-				// Return product names as array and keyword
-				item.json.products = productArray;
-				item.json.keyword = keyword;
-			} catch (error) {
-				// Handle errors appropriately
-				if (this.continueOnFail()) {
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
-				} else {
-					// Adding `itemIndex` allows other workflows to handle this error
-					if (error.context) {
-						// If the error thrown already contains the context property,
-						// only append the itemIndex
-						error.context.itemIndex = itemIndex;
-						throw error;
-					}
-					throw new NodeOperationError(this.getNode(), error, {
-						itemIndex,
-					});
-				}
 			}
+
+			/* ===============================
+			   4. ATTACH OUTPUT
+			=============================== */
+
+			item.json.keyword = keyword;
+			item.json.city = city;
+			item.json.country = country;
+			item.json.products = products;
+			item.json.searchedAt = new Date().toISOString();
+			item.json.skipped = false;
 		}
 
 		return [items];
