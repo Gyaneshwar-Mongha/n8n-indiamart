@@ -10,6 +10,7 @@ IndiaMART is India's largest B2B marketplace, connecting buyers and suppliers ac
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 [Installation](#installation)  
+[Credentials](#credentials)  
 [Operations](#operations)  
 [Compatibility](#compatibility)  
 [Usage](#usage)  
@@ -18,6 +19,15 @@ IndiaMART is India's largest B2B marketplace, connecting buyers and suppliers ac
 ## Installation
 
 Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+
+## Credentials
+
+To power your IndiaMART n8n node, you need an API key. Follow these simple steps to get your credentials:
+
+1. **Visit the Credentials Page**: Go to [indiamart.com/new/gamma/n8n_index.php](https://www.indiamart.com/new/gamma/n8n_index.php).
+2. **Enter Details**: Provide your registered mobile number or email address.
+3. **Verify OTP**: Enter the one-time password (OTP) sent to your registered contact.
+4. **Get Credentials**: Copy your unique key and use it to authenticate your n8n node.
 
 ## Operations
 

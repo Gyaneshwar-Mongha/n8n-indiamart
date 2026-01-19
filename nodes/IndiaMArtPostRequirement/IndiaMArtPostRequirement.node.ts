@@ -6,6 +6,37 @@ import type {
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
+// Helper function to extract JSON from response that might have PHP warnings
+function extractJSON(response: any): any {
+	// If response is already an object, return it (or its data if it's a full response)
+	if (typeof response === 'object' && response !== null) {
+		if (response.data) return response.data;
+		if (response.body) return response.body;
+		return response;
+	}
+
+	// If response is a string, try to extract JSON
+	if (typeof response === 'string') {
+		// Find the first { or [ character (start of JSON)
+		const jsonStartIndex = Math.min(
+			response.indexOf('{') !== -1 ? response.indexOf('{') : Infinity,
+			response.indexOf('[') !== -1 ? response.indexOf('[') : Infinity
+		);
+
+		if (jsonStartIndex !== Infinity) {
+			const jsonString = response.substring(jsonStartIndex);
+			try {
+				return JSON.parse(jsonString);
+			} catch (e) {
+				// If parsing fails, return the original response
+				return response;
+			}
+		}
+	}
+
+	return response;
+}
+
 export class IndiaMArtPostRequirement implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART Post Requirement',
@@ -21,8 +52,15 @@ export class IndiaMArtPostRequirement implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		properties: [
-			// Node properties which the user gets displayed and
-			// can change on the node.
+			{
+				displayName: 'Secret Key',
+				name: 'secretKey',
+				type: 'string',
+				default: '',
+				placeholder: 'Enter your secret key',
+				description: 'Enter your secret key',
+				required: true,
+			},
 			{
 				displayName: 'Product Name',
 				name: 'productName',
@@ -33,13 +71,44 @@ export class IndiaMArtPostRequirement implements INodeType {
 				required: true,
 			},
 			{
-				displayName: 'Contact',
-				name: 'contact',
-				type: 'string',
-				default: '',
-				placeholder: '+917234231410 or user@email.com',
-				description: 'Contact number or email address',
+				displayName: 'Quantity',
+				name: 'quantity',
+				type: 'number',
+				default: 1,
+				placeholder: '10',
+				description: 'Quantity required (must be greater than 0)',
 				required: true,
+				typeOptions: {
+					minValue: 1,
+				},
+			},
+			{
+				displayName: 'Quantity Unit',
+				name: 'quantityUnit',
+				type: 'string',
+				default: 'Piece',
+				placeholder: 'Piece, Kg, Ton, Box',
+				description: 'Unit of measurement for the quantity',
+				required: true,
+			},
+			{
+				displayName: 'Additional Requirements',
+				name: 'additionalRequirements',
+				type: 'string',
+				typeOptions: {
+					rows: 4,
+				},
+				default: '',
+				placeholder: 'Any specific requirements, preferences, or details...',
+				description: 'Additional information about your requirement',
+				required: false,
+			},
+			{
+				displayName: 'Enable Debug Logging',
+				name: 'enableDebug',
+				type: 'boolean',
+				default: true,
+				description: 'Whether to enable detailed debug logging',
 			},
 		],
 	};
@@ -54,106 +123,123 @@ export class IndiaMArtPostRequirement implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const productName = this.getNodeParameter('productName', itemIndex, '') as string;
-				const contact = this.getNodeParameter('contact', itemIndex, '') as string;
+				const secretKey = this.getNodeParameter('secretKey', itemIndex, '') as string;
+				const quantity = this.getNodeParameter('quantity', itemIndex, 1) as number;
+				const quantityUnit = this.getNodeParameter('quantityUnit', itemIndex, 'Piece') as string;
+				const additionalRequirements = this.getNodeParameter('additionalRequirements', itemIndex, '') as string;
+				const enableDebug = this.getNodeParameter('enableDebug', itemIndex, true) as boolean;
 				item = items[itemIndex];
 
-				/* ---------------- LOGIN API ---------------- */
-				const loginResponse = await this.helpers.httpRequest({
-					method: 'GET',
-					url: 'https://dir.indiamart.com/api/fdbklogin',
-					qs: {
-						username: contact,
-						modid: 'DIR',
-						glusr_usr_countryname: 'India',
-						screen_name: 'BL/Enq Forms',
-						create_user: 1,
-						format: 'JSON',
-						iso: 'IN',
-					},
-					headers: {
-						'User-Agent': 'n8n-nodes-indiamart',
-						Accept: 'application/json',
-					},
+				const logs: string[] = [];
+
+				// Helper function to safely stringify data and log
+				const log = (message: string, data?: any) => {
+					let logMessage = `[${new Date().toISOString()}] ${message}`;
+					if (data) {
+						try {
+							logMessage += `: ${JSON.stringify(data, null, 2)}`;
+						} catch (e) {
+							// Handle circular structures
+							logMessage += `: [Unserializable Data: ${e.message}]`;
+						}
+					}
+
+					logs.push(logMessage);
+				};
+
+				log('=== Starting IndiaMART Post Requirement (Single API) ===');
+				log('Inputs', {
+					productName,
+					secretKey,
+					quantity,
+					quantityUnit,
+					additionalRequirements,
 				});
 
-				if (!loginResponse || loginResponse.code !== 200) {
-					throw new NodeOperationError(this.getNode(), 'IndiaMART login failed', {
+				// Validate quantity (must be greater than 0)
+				if (quantity <= 0) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'Quantity must be greater than 0',
+						{ itemIndex }
+					);
+				}
+
+				// Validate quantity unit (alphabets only with spaces)
+				if (quantityUnit && !/^[a-zA-Z\s]+$/.test(quantityUnit)) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'Quantity unit must contain only alphabets (a-z, A-Z) and spaces',
+						{ itemIndex }
+					);
+				}
+				/* ---------------- SINGLE API POST ---------------- */
+				const apiUrl = 'https://export.indiamart.com/cgi/postRequirement.php';
+				const payload = {
+					productName,
+					secretKey,
+					quantity,
+					quantityUnit,
+					additionalRequirements,
+				};
+
+				log('Request URL', apiUrl);
+				log('Request Payload', payload);
+
+				let response: any;
+				try {
+					const responseRaw = await this.helpers.httpRequest({
+						method: 'POST',
+						url: apiUrl,
+						body: payload,
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						json: true,
+					});
+
+					// Use helper to safely parse response if needed (though json:true handles mostly)
+					response = extractJSON(responseRaw);
+
+					log('Response Status', 'SUCCESS');
+					log('Response Data', response);
+
+				} catch (error) {
+					log('Response Status', 'FAILED');
+					const errorData = {
+						message: error.message,
+						statusCode: error.statusCode,
+						responseBody: error.response?.body || (typeof error.response === 'string' ? error.response : '[Complex Object]'),
+					};
+					log('Error Details', errorData);
+					throw new NodeOperationError(this.getNode(), `Post Requirement failed: ${error.message}`, {
 						itemIndex,
 					});
 				}
 
-				/* ---------------- EXTRACT glid ---------------- */
-				const rfq_sender_id = loginResponse.DataCookie?.glid;
+				item.json = {
+					success: true,
+					message: 'Requirement posted successfully',
+					data: response,
+				};
 
-				if (!rfq_sender_id) {
-					throw new NodeOperationError(this.getNode(), 'glid not found in login response', {
-						itemIndex,
-					});
+				if (enableDebug) {
+					item.json.logs = logs;
 				}
 
-				const mcatInfo = await this.helpers.httpRequest({
-					method: 'GET',
-					url: 'https://apps.imimg.com/models/mcatid-suggestion.php',
-					qs: {
-						search_param: 'bags',
-					},
-					headers: {
-						'User-Agent': 'n8n-nodes-indiamart',
-						Accept: 'application/json',
-					},
-				});
-				if (!mcatInfo?.mcatid || !mcatInfo?.catid) {
-					throw new NodeOperationError(this.getNode(), 'Invalid MCAT response from IndiaMART', {
-						itemIndex,
-					});
-				}
-
-				const mcatid = String(mcatInfo.mcatid);
-				const catid = String(mcatInfo.catid);
-
-				/* ---------------- POST REQUIREMENT ---------------- */
-				const postResponse = await this.helpers.httpRequest({
-					method: 'POST',
-					url: 'https://export.indiamart.com/api/saveEnrichment/',
-					body: {
-						category_type: 'P',
-						curr_page_url: '',
-						glcat_mcat_id: mcatid,
-						iso: 'IN',
-						modref_type: 'product',
-						prod_serv: 'P',
-						rfq_cat_id: catid,
-						rfq_query_ref_text: 'n8n',
-						rfq_ref_url: '',
-						rfq_sender_id: rfq_sender_id,
-						rfq_subject: productName,
-					},
-					headers: {
-						'User-Agent': 'n8n-nodes-indiamart',
-					},
-				} as any);
-
-				// Check if ofr exists and contains a number value
-				const hasValidOfr = postResponse.ofr && !isNaN(Number(postResponse.ofr));
-
-				if (hasValidOfr) {
-					// Return success response
-					item.json = {};
-					item.json.message = 'Successfully posted requirement on IndiaMART';
-				} else {
-					throw new NodeOperationError(this.getNode(), 'Could not post requirement on IndiaMART', {
-						itemIndex,
-					});
-				}
 			} catch (error) {
-				// Handle errors appropriately
 				if (this.continueOnFail()) {
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
+					items.push({
+						json: {
+							...this.getInputData(itemIndex)[0].json,
+							success: false,
+							error: error.message,
+						},
+						error,
+						pairedItem: itemIndex
+					});
 				} else {
-					// Adding `itemIndex` allows other workflows to handle this error
 					if (error.context) {
-						// If the error thrown already contains the context property,
-						// only append the itemIndex
 						error.context.itemIndex = itemIndex;
 						throw error;
 					}
