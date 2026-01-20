@@ -3,39 +3,13 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	ICredentialTestFunctions,
+	ICredentialsDecrypted,
+	INodeCredentialTestResult,
+	IN8nHttpFullResponse,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-// Helper function to extract JSON from response that might have PHP warnings
-function extractJSON(response: any): any {
-	// If response is already an object, return it (or its data if it's a full response)
-	if (typeof response === 'object' && response !== null) {
-		if (response.data) return response.data;
-		if (response.body) return response.body;
-		return response;
-	}
-
-	// If response is a string, try to extract JSON
-	if (typeof response === 'string') {
-		// Find the first { or [ character (start of JSON)
-		const jsonStartIndex = Math.min(
-			response.indexOf('{') !== -1 ? response.indexOf('{') : Infinity,
-			response.indexOf('[') !== -1 ? response.indexOf('[') : Infinity
-		);
-
-		if (jsonStartIndex !== Infinity) {
-			const jsonString = response.substring(jsonStartIndex);
-			try {
-				return JSON.parse(jsonString);
-			} catch (e) {
-				// If parsing fails, return the original response
-				return response;
-			}
-		}
-	}
-
-	return response;
-}
 
 export class IndiaMArtPostRequirement implements INodeType {
 	description: INodeTypeDescription = {
@@ -48,19 +22,16 @@ export class IndiaMArtPostRequirement implements INodeType {
 		defaults: {
 			name: 'IndiaMART Post Requirement',
 		},
+		credentials: [
+			{
+				name: 'indiaMartApi',
+				required: true,
+			},
+		],
 		inputs: [NodeConnectionTypes.Main],
 		outputs: [NodeConnectionTypes.Main],
 		usableAsTool: true,
 		properties: [
-			{
-				displayName: 'Secret Key',
-				name: 'secretKey',
-				type: 'string',
-				default: '',
-				placeholder: 'Enter your secret key',
-				description: 'Enter your secret key',
-				required: true,
-			},
 			{
 				displayName: 'Product Name',
 				name: 'productName',
@@ -103,14 +74,57 @@ export class IndiaMArtPostRequirement implements INodeType {
 				description: 'Additional information about your requirement',
 				required: false,
 			},
-			{
-				displayName: 'Enable Debug Logging',
-				name: 'enableDebug',
-				type: 'boolean',
-				default: true,
-				description: 'Whether to enable detailed debug logging',
-			},
 		],
+	};
+
+	methods = {
+		credentialTest: {
+			async indiaMartApiTest(
+				this: ICredentialTestFunctions,
+				credential: ICredentialsDecrypted,
+			): Promise<INodeCredentialTestResult> {
+				const secretKey = credential.data?.secretKey as string;
+
+				try {
+					const response = await this.helpers.request({
+						method: 'POST',
+						url: 'https://export.indiamart.com/api/credGenRead/',
+						body: {
+							secretkey: secretKey,
+						},
+						json: true,
+						resolveWithFullResponse: true,
+					});
+
+					// Strict validation: must be 200 OK with non-empty glid
+					if (response.statusCode === 200 && response.body) {
+						const body = typeof response.body === 'string'
+							? JSON.parse(response.body)
+							: response.body;
+
+						// Verify that glid exists and is not empty
+						if (body.glid && body.glid.length > 0) {
+							return {
+								status: 'OK',
+								message: `Secret key verified successfully! GLID: ${body.glid}`,
+							};
+						}
+					}
+
+					// If we get here, either not 200 or invalid response
+					return {
+						status: 'Error',
+						message: 'Invalid secret key - authentication failed. Please check your secret key and try again.',
+					};
+
+				} catch (error) {
+					return {
+						status: 'Error',
+						message: `Authentication failed: ${error.message}`,
+					};
+				}
+			},
+		},
 	};
 
 	// The function below is responsible for posting a requirement
@@ -123,38 +137,12 @@ export class IndiaMArtPostRequirement implements INodeType {
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
 			try {
 				const productName = this.getNodeParameter('productName', itemIndex, '') as string;
-				const secretKey = this.getNodeParameter('secretKey', itemIndex, '') as string;
+				const credentials = await this.getCredentials('indiaMartApi');
+				const secretKey = credentials.secretKey as string;
 				const quantity = this.getNodeParameter('quantity', itemIndex, 1) as number;
 				const quantityUnit = this.getNodeParameter('quantityUnit', itemIndex, 'Piece') as string;
 				const additionalRequirements = this.getNodeParameter('additionalRequirements', itemIndex, '') as string;
-				const enableDebug = this.getNodeParameter('enableDebug', itemIndex, true) as boolean;
 				item = items[itemIndex];
-
-				const logs: string[] = [];
-
-				// Helper function to safely stringify data and log
-				const log = (message: string, data?: any) => {
-					let logMessage = `[${new Date().toISOString()}] ${message}`;
-					if (data) {
-						try {
-							logMessage += `: ${JSON.stringify(data, null, 2)}`;
-						} catch (e) {
-							// Handle circular structures
-							logMessage += `: [Unserializable Data: ${e.message}]`;
-						}
-					}
-
-					logs.push(logMessage);
-				};
-
-				log('=== Starting IndiaMART Post Requirement (Single API) ===');
-				log('Inputs', {
-					productName,
-					secretKey,
-					quantity,
-					quantityUnit,
-					additionalRequirements,
-				});
 
 				// Validate quantity (must be greater than 0)
 				if (quantity <= 0) {
@@ -183,12 +171,8 @@ export class IndiaMArtPostRequirement implements INodeType {
 					additionalRequirements,
 				};
 
-				log('Request URL', apiUrl);
-				log('Request Payload', payload);
-
-				let response: any;
 				try {
-					const responseRaw = await this.helpers.httpRequest({
+					const response = await this.helpers.httpRequest({
 						method: 'POST',
 						url: apiUrl,
 						body: payload,
@@ -196,36 +180,40 @@ export class IndiaMArtPostRequirement implements INodeType {
 							'Content-Type': 'application/json',
 						},
 						json: true,
-					});
+						returnFullResponse: true,
+						ignoreHttpStatusErrors: true,
+					}) as IN8nHttpFullResponse;
 
-					// Use helper to safely parse response if needed (though json:true handles mostly)
-					response = extractJSON(responseRaw);
+					// Check for specific error message: {"status":"error","message":"Invalid or expired secret key"}
+					const responseBody = response.body;
+					const bodyString = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
 
-					log('Response Status', 'SUCCESS');
-					log('Response Data', response);
+					if (bodyString.includes('Invalid or expired secret key')) {
+						item.json = {
+							message: 'Invalid or expired secret key',
+						};
+						continue;
+					}
+
+					// For any other non-2xx response, throw error
+					if (response.statusCode >= 400) {
+						throw new NodeOperationError(this.getNode(), `Post Requirement failed: ${JSON.stringify(response.body)}`, {
+							itemIndex,
+						});
+					}
 
 				} catch (error) {
-					log('Response Status', 'FAILED');
-					const errorData = {
-						message: error.message,
-						statusCode: error.statusCode,
-						responseBody: error.response?.body || (typeof error.response === 'string' ? error.response : '[Complex Object]'),
-					};
-					log('Error Details', errorData);
+					if (error instanceof NodeOperationError) {
+						throw error;
+					}
 					throw new NodeOperationError(this.getNode(), `Post Requirement failed: ${error.message}`, {
 						itemIndex,
 					});
 				}
 
 				item.json = {
-					success: true,
-					message: 'Requirement posted successfully',
-					data: response,
+					message: 'Successfully posted requirement on IndiaMART',
 				};
-
-				if (enableDebug) {
-					item.json.logs = logs;
-				}
 
 			} catch (error) {
 				if (this.continueOnFail()) {
