@@ -81,7 +81,7 @@ The node returns an object with:
 
 - **products**: Array of product objects with details
   - **name**: Product name
-  - **number**: Product number/SKU
+  - **number**: Mobile number of the company/supplier
   - **companyname**: Company/supplier name
   - **image**: Product image URL
 - **keyword**: The search keyword used
@@ -96,9 +96,17 @@ The IndiaMART Post Requirement node requires the following parameters:
 - The name of the product for which you're posting a requirement
 - Examples: "Pave Diamond Pendant", "Office Chairs", "Electronics"
 
-**Contact** (required)
-- Contact number or email address for the requirement
-- Examples: "user@email.com" or "7233191224"
+**Quantity** (required)
+- The quantity of the product required
+- Example: 10
+
+**Quantity Unit** (required)
+- The unit of measurement for the quantity
+- Examples: "Piece", "Kg", "Ton", "Box"
+
+**Additional Requirements** (optional)
+- Any specific requirements, preferences, or details
+- Example: "Need high quality finish"
 
 #### Output
 
