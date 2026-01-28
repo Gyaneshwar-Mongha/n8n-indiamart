@@ -50,6 +50,6 @@
 	"peerDependencies": {
 		"n8n-workflow": "*"
 	},
-	"main": ".prettierrc.js",
+	"main": "index.js",
 	"type": "commonjs"
 }
