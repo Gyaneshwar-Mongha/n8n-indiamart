@@ -3,9 +3,6 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	ICredentialTestFunctions,
-	ICredentialsDecrypted,
-	INodeCredentialTestResult,
 	IN8nHttpFullResponse,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
@@ -72,59 +69,8 @@ export class IndiaMArtPostRequirement implements INodeType {
 				default: '',
 				placeholder: 'Any specific requirements, preferences, or details...',
 				description: 'Additional information about your requirement',
-				required: false,
 			},
 		],
-	};
-
-	methods = {
-		credentialTest: {
-			async indiaMartApiTest(
-				this: ICredentialTestFunctions,
-				credential: ICredentialsDecrypted,
-			): Promise<INodeCredentialTestResult> {
-				const secretKey = credential.data?.secretKey as string;
-
-				try {
-					const response = await this.helpers.request({
-						method: 'POST',
-						url: 'https://export.indiamart.com/api/credGenRead/',
-						body: {
-							secretkey: secretKey,
-						},
-						json: true,
-						resolveWithFullResponse: true,
-					});
-
-					// Strict validation: must be 200 OK with non-empty glid
-					if (response.statusCode === 200 && response.body) {
-						const body = typeof response.body === 'string'
-							? JSON.parse(response.body)
-							: response.body;
-
-						// Verify that glid exists and is not empty
-						if (body.glid && body.glid.length > 0) {
-							return {
-								status: 'OK',
-								message: `Secret key verified successfully! GLID: ${body.glid}`,
-							};
-						}
-					}
-
-					// If we get here, either not 200 or invalid response
-					return {
-						status: 'Error',
-						message: 'Invalid secret key - authentication failed. Please check your secret key and try again.',
-					};
-
-				} catch (error) {
-					return {
-						status: 'Error',
-						message: `Authentication failed: ${error.message}`,
-					};
-				}
-			},
-		},
 	};
 
 	// The function below is responsible for posting a requirement

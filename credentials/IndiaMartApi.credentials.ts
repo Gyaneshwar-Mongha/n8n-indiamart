@@ -7,6 +7,8 @@ import type {
 export class IndiaMartApi implements ICredentialType {
     name = 'indiaMartApi';
     displayName = 'IndiaMART API';
+    documentationUrl = 'https://github.com/Gyaneshwar-Mongha/n8n-indiamart';
+    icon = { light: 'file:indiamart.svg', dark: 'file:indiamart.svg' } as const;
     properties: INodeProperties[] = [
         {
             displayName: 'Secret Key',
