@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-indiamart",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"description": "n8n community node for on IndiaMART",
 	"license": "MIT",
 	"homepage": "https://github.com/Gyaneshwar-Mongha/n8n-indiamart",
