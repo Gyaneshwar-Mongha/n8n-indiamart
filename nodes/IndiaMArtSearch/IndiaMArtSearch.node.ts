@@ -78,8 +78,8 @@ export class IndiaMArtSearch implements INodeType {
 					returnFullResponse: true,
 				}) as IN8nHttpFullResponse;
 
-				const credBody = credResponse.body as any;
-				if (!credBody || !credBody.glid) {
+				const credBody = credResponse.body as { glid?: string };
+				if (!credBody?.glid) {
 					throw new NodeOperationError(this.getNode(), 'Invalid or expired secret key (credential validation failed)', {
 						itemIndex,
 					});
