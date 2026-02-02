@@ -75,7 +75,7 @@ export class IndiaMArtSearch implements INodeType {
 				});
 
 				// Parse JSON response
-				let parsedData: any;
+				let parsedData: unknown;
 				try {
 					parsedData = typeof response === 'string' ? JSON.parse(response) : response;
 				} catch {
