@@ -63,7 +63,7 @@ export class IndiaMArtSearch implements INodeType {
 				}
 
 				// Make HTTP request to IndiaMART search API
-				const url = 'https://export.indiamart.com/cgi/N8nRequirement.php';
+				const url = 'https://export.indiamart.com/cgi/SearchN8n.php';
 				const response = await this.helpers.httpRequest({
 					method: 'POST',
 					url: url,
