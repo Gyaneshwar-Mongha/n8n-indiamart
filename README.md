@@ -160,7 +160,7 @@ Once installed:
 
 **Gyaneshwar Mongha**
 - Email: gyaneshwar.mongha@indiamart.com
-- GitHub: [@gyaneshwar](https://github.com/gyaneshwar)
+- GitHub: [@gyaneshwar](https://github.com/Gyaneshwar-Mongha/)
 
 ## Resources
 
