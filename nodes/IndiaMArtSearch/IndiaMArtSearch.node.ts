@@ -3,6 +3,7 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
+	IDataObject,
 } from 'n8n-workflow';
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
@@ -84,10 +85,12 @@ export class IndiaMArtSearch implements INodeType {
 					});
 				}
 
-				// Create a deep clone to ensure no mutation of input data
-				const outputJson = JSON.parse(JSON.stringify(items[itemIndex].json));
-				outputJson.products = parsedData;
-				outputJson.keyword = keyword;
+				// Create output JSON using spread syntax (recommended practice)
+				const outputJson = {
+					...items[itemIndex].json,
+					products: parsedData as IDataObject,
+					keyword,
+				};
 
 				returnData.push({
 					json: outputJson,

@@ -76,8 +76,7 @@ export class IndiaMArtPostRequirement implements INodeType {
 	// The function below is responsible for posting a requirement
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-
-		let item: INodeExecutionData;
+		const returnData: INodeExecutionData[] = [];
 
 		// Iterates over all input items and posts requirement to IndiaMART
 		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
@@ -88,7 +87,6 @@ export class IndiaMArtPostRequirement implements INodeType {
 				const quantity = this.getNodeParameter('quantity', itemIndex, 1) as number;
 				const quantityUnit = this.getNodeParameter('quantityUnit', itemIndex, 'Piece') as string;
 				const additionalRequirements = this.getNodeParameter('additionalRequirements', itemIndex, '') as string;
-				item = items[itemIndex];
 
 				// Validate quantity (must be greater than 0)
 				if (quantity <= 0) {
@@ -135,9 +133,12 @@ export class IndiaMArtPostRequirement implements INodeType {
 					const bodyString = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
 
 					if (bodyString.includes('Invalid or expired secret key')) {
-						item.json = {
-							message: 'Invalid or expired secret key',
-						};
+						returnData.push({
+							json: {
+								message: 'Invalid or expired secret key',
+							},
+							pairedItem: itemIndex,
+						});
 						continue;
 					}
 
@@ -157,20 +158,21 @@ export class IndiaMArtPostRequirement implements INodeType {
 					});
 				}
 
-				item.json = {
-					message: 'Successfully posted requirement on IndiaMART',
-				};
+				returnData.push({
+					json: {
+						message: 'Successfully posted requirement on IndiaMART',
+					},
+					pairedItem: itemIndex,
+				});
 
 			} catch (error) {
 				if (this.continueOnFail()) {
-					items.push({
+					returnData.push({
 						json: {
-							...this.getInputData(itemIndex)[0].json,
-							success: false,
+							...items[itemIndex].json,
 							error: error.message,
 						},
-						error,
-						pairedItem: itemIndex
+						pairedItem: itemIndex,
 					});
 				} else {
 					if (error.context) {
@@ -184,6 +186,6 @@ export class IndiaMArtPostRequirement implements INodeType {
 			}
 		}
 
-		return [items];
+		return [returnData];
 	}
 }
