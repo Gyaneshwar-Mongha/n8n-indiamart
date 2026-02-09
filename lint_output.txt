@@ -1,5 +1,0 @@
-
-> n8n-nodes-indiamart@1.0.9 lint
-> n8n-node lint
-
-[90m┌[39m  [7m n8n-node lint [27m [2mv0.17.0[22m
