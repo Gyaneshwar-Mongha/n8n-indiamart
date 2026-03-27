@@ -9,6 +9,15 @@ export class IndiaMartApi implements ICredentialType {
     displayName = 'IndiaMART API';
     documentationUrl = 'https://github.com/Gyaneshwar-Mongha/n8n-indiamart';
     icon = { light: 'file:indiamart.svg', dark: 'file:indiamart.svg' } as const;
+    authenticate = {
+        type: 'generic',
+        properties: {
+            body: {
+                secretKey: '={{$credentials.secretKey}}',
+            },
+        },
+    } as const;
+
     properties: INodeProperties[] = [
         {
             displayName: 'Secret Key',
@@ -39,14 +48,16 @@ export class IndiaMartApi implements ICredentialType {
             // This is important - tells n8n to return full response
             returnFullResponse: true,
         },
-        // This rule checks if response has a glid field (which means success)
+        // This rule checks if response body has a glid field (which means success)
         rules: [
             {
                 type: 'responseSuccessBody',
                 properties: {
                     key: 'glid',
+                    // Using a regex to ensure glid exists and is not empty
+                    // Since it's a dynamic ID, we check that it matches any non-empty string
+                    value: '=/^.+$/',
                     message: 'Secret key verified successfully!',
-                    value: 'glid',
                 },
             },
         ],
