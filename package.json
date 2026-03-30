@@ -36,7 +36,7 @@
 			"dist/credentials/IndiaMartApi.credentials.js"
 		],
 		"nodes": [
-			"dist/nodes/IndiaMART/IndiaMART.node.js"
+			"dist/nodes/IndiaMart/IndiaMart.node.js"
 		]
 	},
 	"devDependencies": {

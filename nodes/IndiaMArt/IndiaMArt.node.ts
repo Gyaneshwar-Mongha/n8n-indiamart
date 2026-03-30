@@ -10,7 +10,7 @@ import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workf
 export class IndiaMART implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART',
-		name: 'indiaMART',
+		name: 'indiaMart',
 		icon: 'file:icon.svg',
 		group: ['transform'],
 		version: 1,
