@@ -1,0 +1,13 @@
+{
+	"node": "n8n-nodes-base.indiaMArt",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Sales"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://github.com/Gyaneshwar-Mongha/n8n-indiamart"
+			}
+		]
+	}
+}
