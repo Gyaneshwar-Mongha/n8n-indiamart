@@ -7,10 +7,10 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError, NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-export class IndiaMArt implements INodeType {
+export class IndiaMART implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'IndiaMART',
-		name: 'indiaMArt',
+		name: 'indiaMART',
 		icon: 'file:icon.svg',
 		group: ['transform'],
 		version: 1,
