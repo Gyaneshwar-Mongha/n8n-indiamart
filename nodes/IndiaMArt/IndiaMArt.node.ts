@@ -36,16 +36,16 @@ export class IndiaMART implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'Search Products',
-						value: 'searchProducts',
-						description: 'Search IndiaMART for products by keyword',
-						action: 'Search products',
-					},
-					{
 						name: 'Post Requirement',
 						value: 'postRequirement',
 						description: 'Post a product requirement on IndiaMART',
 						action: 'Post requirement',
+					},
+					{
+						name: 'Search Products',
+						value: 'searchProducts',
+						description: 'Search IndiaMART for products by keyword',
+						action: 'Search products',
 					},
 				],
 				default: 'searchProducts',
